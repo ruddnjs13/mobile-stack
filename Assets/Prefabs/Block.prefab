@@ -121,5 +121,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a180a9895ce49c2af4114c7738e5a9b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _isRightBlock: 1
-  _moveSpeed: 5
+  moveSpeed: 5

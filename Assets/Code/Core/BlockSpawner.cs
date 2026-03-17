@@ -1,4 +1,4 @@
-using Code.Objects;
+using Code.StackSystem;
 using UnityEngine;
 
 namespace Code.Core
@@ -6,18 +6,18 @@ namespace Code.Core
     public class BlockSpawner : MonoBehaviour
     {
         [SerializeField] private Transform[] spawnPoints;
-        [SerializeField] private GameObject blockPrefab;
-        
-        public void SpawnBlock(bool isRightBlock)
+        [SerializeField] private StackBlock blockPrefab;
+
+        public StackBlock SpawnBlock(bool isRightBlock, StackBlock previousBlock)
         {
-            if (isRightBlock)
-            {
-                Instantiate(blockPrefab, spawnPoints[0].position, Quaternion.identity);
-            }
-            else
-            {
-                Instantiate(blockPrefab, spawnPoints[1].position, Quaternion.identity);
-            }
+            Vector3 spawnPosition = isRightBlock ? spawnPoints[0].position : spawnPoints[1].position;
+
+            StackBlock block = Instantiate(blockPrefab, spawnPosition, Quaternion.identity);
+
+            Vector3 moveDir = isRightBlock ? -Vector3.forward : Vector3.right;
+            block.SetBlock(spawnPosition, moveDir);
+
+            return block;
         }
     }
 }
