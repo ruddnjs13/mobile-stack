@@ -1,73 +1,67 @@
 using Code.StackSystem;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Code.Core
 {
     public class GameManager : MonoBehaviour
     {
-        [SerializeField] private InputReaderSO inputReader;
-        [SerializeField] private BlockSpawner blockSpawner;
+        [Header("References")]
+        [SerializeField] private InputReaderSO _inputReader;
+        [SerializeField] private BlockSpawner _spawner;
+        [SerializeField] private BlockCutter _cutter;
+    
+        [Header("Settings")]
+        [SerializeField] private float _moveSpeed = 2.0f;
+        [SerializeField] private StackBlock _baseBlock; // 맨 처음 바닥 블록
 
-        public int Score { get; private set; }
-        public bool IsPlaying { get; private set; }
+        private StackBlock _currentBlock;
+        private Vector3 _lastPos;
+        private Vector3 _lastSize;
+        private bool _isGameOver = false;
 
-        public StackBlock CurrentBlock { get; private set; }
-        public StackBlock PreviousBlock { get; private set; }
-
-        private void OnEnable() => inputReader.OnPlayerTouch += HandlePlayerTouch;
-        private void OnDisable() => inputReader.OnPlayerTouch -= HandlePlayerTouch;
-
-        public void InitGame()
+        private void Start()
         {
-            Score = 0;
-            IsPlaying = true;
-            PreviousBlock = null;
-            CurrentBlock = blockSpawner.SpawnBlock(true, null);
+            _lastPos = _baseBlock.transform.position;
+            _lastSize = _baseBlock.transform.localScale;
+        
+            // 첫 블록 생성
+            SpawnNext();
+        
+            // 입력 이벤트 연결
+            _inputReader.OnPlayerTouch += HandleStackAttempt;
         }
 
-        private void HandlePlayerTouch()
+        private void Update()
         {
-            if (!IsPlaying)
-            {
-                InitGame();
-                return;
-            }
+            if (_isGameOver) return;
+        }
 
-            if (CurrentBlock == null) return;
+        private void HandleStackAttempt()
+        {
+            if (_currentBlock == null || _isGameOver) return;
 
-            // 1️⃣ 현재 블록 멈춤
-            CurrentBlock.Stop();
+            _currentBlock.Stop();
+        
+            // 절단 및 판정 수행
+            // 주의: _currentBlock.Axis는 위에서 짠 코드를 참조해 수정 필요
+            _cutter.Slice(_currentBlock, _lastPos, _lastSize,_currentBlock.Axis);
 
-            // 2️⃣ 판정
-            StackResult result;
-            if (PreviousBlock == null)
-            {
-                // 첫 블록
-                result = CurrentBlock.CurrentStackResult;
-            }
-            else
-            {
-                result = StackUtil.JudgeBlock(CurrentBlock.transform.position, PreviousBlock, CurrentBlock.transform.localScale);
-                CurrentBlock.ApplyStackResult(result);
+            // 절단 후 데이터 갱신 (다음 층의 기준이 됨)
+            _lastPos = _currentBlock.transform.position;
+            _lastSize = _currentBlock.transform.localScale;
 
-                // 3️⃣ 실패 시
-                if (!result.isSuccess)
-                {
-                    IsPlaying = false;
-                    Debug.Log("Game Over");
-                    return;
-                }
+            SpawnNext();
+        }
 
-                // 4️⃣ 잘린 블록 처리
-                BlockCutter.ApplyCut(CurrentBlock, result);
-            }
+        private void SpawnNext()
+        {
+            _currentBlock = _spawner.Spawn(_lastPos, _lastSize, _moveSpeed);
+            _moveSpeed += 0.1f; // 난이도 조절: 층마다 조금씩 빨라짐
+        }
 
-            // 5️⃣ 다음 블록 생성
-            PreviousBlock = CurrentBlock;
-            bool isRightBlock = Score % 2 == 0;
-            CurrentBlock = blockSpawner.SpawnBlock(isRightBlock, PreviousBlock);
-            Score++;
+        private void OnDestroy()
+        {
+            _inputReader.OnPlayerTouch -= HandleStackAttempt;
         }
     }
 }

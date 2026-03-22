@@ -4,35 +4,42 @@ namespace Code.StackSystem
 {
     public static class StackUtil
     {
-        // 현재 블록과 이전 블록을 비교해 StackResult 생성
-        public static StackResult JudgeBlock(Vector3 currentPos, StackBlock prevBlock, Vector3 currentScale)
+        public struct SliceResult
         {
-            Vector2 offset = new Vector2(
-                currentPos.x - prevBlock.transform.position.x,
-                currentPos.z - prevBlock.transform.position.z
-            );
+            public bool isOver;
+            public float remainingSize;
+            public float remainingCenter;
+            public float fallingSize;
+            public float fallingCenter;
+            public float offset; // 방향 판정용
+        }
 
-            Vector2 absOffset = new Vector2(Mathf.Abs(offset.x), Mathf.Abs(offset.y));
+        // StackUtil.cs 내부
+        public static SliceResult CalculateSlice(float prevPos, float prevSize, float currPos)
+        {
+            float offset = currPos - prevPos;
+            float absOffset = Mathf.Abs(offset);
+            float direction = offset > 0 ? 1 : -1;
 
-            Vector2 remaining = new Vector2(
-                Mathf.Max(currentScale.x - absOffset.x, 0),
-                Mathf.Max(currentScale.z - absOffset.y, 0)
-            );
+            if (absOffset >= prevSize) return new SliceResult { isOver = true };
 
-            Vector2 cut = new Vector2(
-                currentScale.x - remaining.x,
-                currentScale.z - remaining.y
-            );
+            float remainingSize = prevSize - absOffset;
+    
+            // 남은 블록의 중심
+            float remainingCenter = prevPos + (offset / 2f);
+    
+            // 💡 핵심: 파편의 중심은 (남은 블록의 끝단) + (파편 크기의 절반 * 방향)
+            float edgeOfRemaining = remainingCenter + (direction * (remainingSize / 2f));
+            float fallingCenter = edgeOfRemaining + (direction * (absOffset / 2f));
 
-            bool isSuccess = remaining.x > 0 && remaining.y > 0;
-
-            return new StackResult
+            return new SliceResult
             {
-                isSuccess = isSuccess,
-                remainingSize = remaining,
-                cutSize = cut,
-                offset = offset,
-                isInitialized = true
+                isOver = false,
+                remainingSize = remainingSize,
+                remainingCenter = remainingCenter,
+                fallingSize = absOffset,
+                fallingCenter = fallingCenter,
+                offset = offset
             };
         }
     }

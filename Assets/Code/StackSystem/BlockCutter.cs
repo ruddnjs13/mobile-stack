@@ -2,44 +2,72 @@ using UnityEngine;
 
 namespace Code.StackSystem
 {
-    public static class BlockCutter
+    public class BlockCutter : MonoBehaviour
     {
-        public static void ApplyCut(StackBlock block, StackResult result)
+        [SerializeField] private GameObject _fallingBlockPrefab; // Rigidbody가 붙은 프리팹
+
+        public void Slice(StackBlock current, Vector3 prevPos, Vector3 prevSize, StackBlock.MoveAxis axis)
         {
-            if (!result.isSuccess) return;
+            float curPos = (axis == StackBlock.MoveAxis.X) ? current.transform.position.x : current.transform.position.z;
+            float pPos = (axis == StackBlock.MoveAxis.X) ? prevPos.x : prevPos.z;
+            float pSize = (axis == StackBlock.MoveAxis.X) ? prevSize.x : prevSize.z;
 
-            Vector3 scale = block.transform.localScale;
-            Vector3 pos = block.transform.position;
+            var result = StackUtil.CalculateSlice(pPos, pSize, curPos);
 
-            // 남은 블록 크기 적용
-            scale.x = result.remainingSize.x;
-            scale.z = result.remainingSize.y;
-            block.transform.localScale = scale;
+            if (result.isOver)
+            {
+                // Game Over 처리 (EventBus 호출)
+                Debug.Log("Game Over!");
+                return;
+            }
 
-            // 위치 보정
-            pos.x -= result.offset.x / 2f;
-            pos.z -= result.offset.y / 2f;
-            block.transform.position = pos;
+            // 1. 남은 블록 처리
+            Vector3 newScale = current.transform.localScale;
+            Vector3 newPos = current.transform.position;
 
-            // 잘린 블록 생성
-            if (result.cutSize.x > 0f || result.cutSize.y > 0f)
-                CreateFallingBlock(result, pos, scale.y);
+            if (axis == StackBlock.MoveAxis.X)
+            {
+                newScale.x = result.remainingSize;
+                newPos.x = result.remainingCenter;
+            }
+            else
+            {
+                newScale.z = result.remainingSize;
+                newPos.z = result.remainingCenter;
+            }
+
+            current.transform.localScale = newScale;
+            current.transform.position = newPos;
+
+            // 2. 파편 블록 생성
+            SpawnFallingBlock(result, current.transform.position.y, current.transform.localScale, axis);
         }
 
-        private static void CreateFallingBlock(StackResult result, Vector3 parentPos, float height)
+        private void SpawnFallingBlock(StackUtil.SliceResult res, float y, Vector3 currentScale, StackBlock.MoveAxis axis)
         {
-            Vector3 cutScale = new Vector3(result.cutSize.x, height, result.cutSize.y);
-            GameObject cutBlock = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cutBlock.transform.localScale = cutScale;
+            GameObject falling = Instantiate(_fallingBlockPrefab);
+            Vector3 fallScale = currentScale;
+            Vector3 fallPos = new Vector3(res.remainingCenter, y, res.remainingCenter); // 기본값
 
-            float cutPosX = parentPos.x + (result.remainingSize.x / 2f + cutScale.x / 2f) * Mathf.Sign(result.offset.x);
-            float cutPosZ = parentPos.z + (result.remainingSize.y / 2f + cutScale.z / 2f) * Mathf.Sign(result.offset.y);
-            cutBlock.transform.position = new Vector3(cutPosX, parentPos.y, cutPosZ);
+            if (axis == StackBlock.MoveAxis.X)
+            {
+                fallScale.x = res.fallingSize;
+                fallPos.x = res.fallingCenter;
+                fallPos.z = currentScale.z; // 기존 Z축 유지
+            }
+            else
+            {
+                fallScale.z = res.fallingSize;
+                fallPos.z = res.fallingCenter;
+                fallPos.x = currentScale.x; // 기존 X축 유지
+            }
 
-            Rigidbody rb = cutBlock.AddComponent<Rigidbody>();
-            rb.mass = 1f;
-            Renderer r = cutBlock.GetComponent<Renderer>();
-            if (r != null) r.material.color = Color.red;
+            falling.transform.localScale = fallScale;
+            falling.transform.position = new Vector3(
+                axis == StackBlock.MoveAxis.X ? res.fallingCenter : fallPos.x,
+                y,
+                axis == StackBlock.MoveAxis.Z ? res.fallingCenter : fallPos.z
+            );
         }
     }
 }

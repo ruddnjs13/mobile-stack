@@ -5,19 +5,21 @@ namespace Code.Core
 {
     public class BlockSpawner : MonoBehaviour
     {
-        [SerializeField] private Transform[] spawnPoints;
-        [SerializeField] private StackBlock blockPrefab;
+        [SerializeField] private StackBlock _blockPrefab;
+        private StackBlock.MoveAxis _currentAxis = StackBlock.MoveAxis.X;
 
-        public StackBlock SpawnBlock(bool isRightBlock, StackBlock previousBlock)
+        public StackBlock Spawn(Vector3 lastPos, Vector3 lastSize, float speed)
         {
-            Vector3 spawnPosition = isRightBlock ? spawnPoints[0].position : spawnPoints[1].position;
-
-            StackBlock block = Instantiate(blockPrefab, spawnPosition, Quaternion.identity);
-
-            Vector3 moveDir = isRightBlock ? -Vector3.forward : Vector3.right;
-            block.SetBlock(spawnPosition, moveDir);
-
-            return block;
+            // 다음 층은 축을 교체 (X -> Z -> X ...)
+            _currentAxis = (_currentAxis == StackBlock.MoveAxis.X) ? StackBlock.MoveAxis.Z : StackBlock.MoveAxis.X;
+        
+            // Y값만 한 층 위로 올림
+            Vector3 spawnPos = lastPos + Vector3.up; 
+        
+            StackBlock newBlock = Instantiate(_blockPrefab, spawnPos, Quaternion.identity);
+            newBlock.Init(_currentAxis, speed, lastSize, lastPos);
+        
+            return newBlock;
         }
     }
 }

@@ -1,46 +1,39 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Code.StackSystem
 {
     public class StackBlock : MonoBehaviour
     {
-        [SerializeField] private float moveSpeed = 2f;
-        private Vector3 _moveDir;
-        private bool _isMoving;
+        public enum MoveAxis { X, Z }
 
-        public StackResult CurrentStackResult { get; private set; }
+        public MoveAxis Axis { get; set; }
+        private float _speed;
+        private Vector3 _centerPos; // 이동의 중심점
+        private bool _isMoving = false;
 
-        public void SetBlock(Vector3 spawnPosition, Vector3 moveDir)
+        public void Init(MoveAxis axis, float speed, Vector3 size, Vector3 centerPos)
         {
-            transform.position = spawnPosition;
-            _moveDir = moveDir;
+            Axis = axis;
+            _speed = speed;
+            _centerPos = centerPos;
+            transform.localScale = size;
             _isMoving = true;
-
-            // 초기 StackResult
-            CurrentStackResult = new StackResult
-            {
-                remainingSize = new Vector2(transform.localScale.x, transform.localScale.z),
-                cutSize = Vector2.zero,
-                offset = Vector2.zero,
-                isSuccess = true,
-                isInitialized = true
-            };
         }
 
         private void Update()
         {
             if (!_isMoving) return;
-            transform.Translate(_moveDir * moveSpeed * Time.deltaTime);
+
+            float moveRange = 5f; // 이동 범위
+            float offset = Mathf.PingPong(Time.time * _speed, moveRange * 2) - moveRange;
+
+            if (Axis == MoveAxis.X)
+                transform.position = new Vector3(_centerPos.x + offset, transform.position.y, _centerPos.z);
+            else
+                transform.position = new Vector3(_centerPos.x, transform.position.y, _centerPos.z + offset);
         }
 
-        public void Stop()
-        {
-            _isMoving = false;
-        }
-
-        public void ApplyStackResult(StackResult result)
-        {
-            CurrentStackResult = result;
-        }
+        public void Stop() => _isMoving = false;
     }
 }
